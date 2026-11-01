@@ -1,27 +1,43 @@
 {
-  "name": "vist-app",
+  "name": "vist",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "vist": "node --env-file=.env --import tsx scripts/vist.ts",
+    "studio": "remotion studio src/remotion/index.tsx",
+    "smoke": "node --env-file=.env scripts/smoke-test.mjs",
+    "typecheck": "tsc --noEmit",
+    "vist:login": "node --import tsx scripts/login.ts"
   },
   "dependencies": {
+    "@remotion/bundler": "^4.0.539",
+    "@remotion/cli": "^4.0.539",
+    "@remotion/google-fonts": "^4.0.539",
+    "@remotion/media": "^4.0.539",
+    "@remotion/player": "^4.0.539",
+    "@remotion/renderer": "^4.0.539",
+    "next": "15.5.28",
+    "openai": "^7.47.0",
+    "playwright": "^1.64.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "next": "15.5.28"
+    "remotion": "^4.0.539",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.5.28",
-    "@eslint/eslintrc": "^3"
+    "tailwindcss": "^4",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
   }
 }
