@@ -7,6 +7,16 @@ const STEPS = [
   { title: "Score & cut", model: "Composed by Spark", text: "Spark composes an original soundtrack, and Vist cuts motion graphics on the beat." },
 ];
 
+// WebM first: it plays everywhere, including headless Chromium (which Vist itself browses with); MP4 as fallback.
+function Showcase({ name, autoPlay }: { name: string; autoPlay?: boolean }) {
+  return (
+    <video autoPlay={autoPlay} muted loop playsInline controls preload={autoPlay ? "auto" : "metadata"} className="aspect-video w-full">
+      <source src={`/showcase/${name}.webm`} type="video/webm" />
+      <source src={`/showcase/${name}.mp4`} type="video/mp4" />
+    </video>
+  );
+}
+
 export default function Home() {
   return (
     <main className="mx-auto max-w-6xl px-6 pb-24">
@@ -22,7 +32,7 @@ export default function Home() {
       </section>
 
       <section className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_30px_80px_-30px_rgba(0,0,0,0.25)]">
-        <video src="/showcase/goodcause.mp4" autoPlay muted loop playsInline controls className="aspect-video w-full" />
+        <Showcase name="goodcause" autoPlay />
       </section>
       <p className="mt-3 text-center text-sm text-muted">Made by Vist for goodcause.app — nobody recorded or edited anything.</p>
 
@@ -49,11 +59,11 @@ export default function Home() {
         <p className="mx-auto mt-3 max-w-xl text-center text-muted">Fonts, colours, motion, layout and music are designed for each brand. No templates.</p>
         <div className="mt-10 grid gap-6 sm:grid-cols-2">
           {[
-            { src: "/showcase/goodcause.mp4", name: "goodcause", note: "Light · Outfit · smooth · soft drums & piano" },
-            { src: "/showcase/taskly.mp4", name: "Taskly", note: "Cream · Fraunces · editorial · airy pads" },
+            { file: "goodcause", name: "goodcause", note: "Light · Outfit · smooth · soft drums & piano" },
+            { file: "taskly", name: "Taskly", note: "Cream · Fraunces · editorial · airy pads" },
           ].map((v) => (
             <figure key={v.name} className="overflow-hidden rounded-2xl border border-line bg-surface">
-              <video src={v.src} muted loop playsInline controls preload="metadata" className="aspect-video w-full" />
+              <Showcase name={v.file} />
               <figcaption className="flex items-center justify-between px-5 py-4 text-sm">
                 <span className="font-medium">{v.name}</span>
                 <span className="text-muted">{v.note}</span>
