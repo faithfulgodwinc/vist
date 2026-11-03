@@ -1,4 +1,5 @@
 import { CreateForm } from "@/components/CreateForm";
+import { Showcase } from "@/components/Showcase";
 
 const STEPS = [
   { title: "Explore", model: "Muse Spark · computer use", text: "An agent signs in and uses your product like a new customer, mapping what makes it great." },
@@ -6,16 +7,6 @@ const STEPS = [
   { title: "Direct", model: "Muse Spark · Muse Image", text: "A creative director writes the ad, designs a style kit for your brand, and paints the backdrop." },
   { title: "Score & cut", model: "Composed by Spark", text: "Spark composes an original soundtrack, and Vist cuts motion graphics on the beat." },
 ];
-
-// WebM first: it plays everywhere, including headless Chromium (which Vist itself browses with); MP4 as fallback.
-function Showcase({ name, autoPlay }: { name: string; autoPlay?: boolean }) {
-  return (
-    <video autoPlay={autoPlay} muted loop playsInline controls preload={autoPlay ? "auto" : "metadata"} className="aspect-video w-full">
-      <source src={`/showcase/${name}.webm`} type="video/webm" />
-      <source src={`/showcase/${name}.mp4`} type="video/mp4" />
-    </video>
-  );
-}
 
 export default function Home() {
   return (
@@ -32,7 +23,7 @@ export default function Home() {
       </section>
 
       <section className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_30px_80px_-30px_rgba(0,0,0,0.25)]">
-        <Showcase name="goodcause" autoPlay />
+        <Showcase name="goodcause" />
       </section>
       <p className="mt-3 text-center text-sm text-muted">Made by Vist for goodcause.app — nobody recorded or edited anything.</p>
 
