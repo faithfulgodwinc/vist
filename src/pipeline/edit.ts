@@ -3,7 +3,7 @@ import path from "node:path";
 import { VIEWPORT } from "./browser";
 import { FPS, probeDurationMs, toConstantFrameRate } from "./media";
 import { renderMusic } from "./synth";
-import type { AdScript, AdTimeline, ClipSource, Exploration, Score, Segment, Take, TimedShot } from "./types";
+import { FORMAT_SIZE, type AdScript, type AdTimeline, type ClipSource, type Exploration, type Format, type Score, type Segment, type Take, type TimedShot } from "./types";
 
 export { FPS };
 
@@ -53,6 +53,7 @@ export async function buildAdTimeline(
   takes: Take[],
   publicDir: string,
   backdrop?: string, // Muse Image art, if the director asked for it
+  format: Format = "16:9",
 ): Promise<AdTimeline> {
   const mediaDir = path.join(publicDir, "renders", jobId);
   await fs.mkdir(mediaDir, { recursive: true });
@@ -95,8 +96,7 @@ export async function buildAdTimeline(
 
   return {
     fps: FPS,
-    width: 1920,
-    height: 1080,
+    ...FORMAT_SIZE[format],
     viewport: VIEWPORT,
     brand: { ...exp.brand, primary: script.style.palette.primary },
     style: script.style,

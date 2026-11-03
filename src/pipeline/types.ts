@@ -107,6 +107,14 @@ export type ClipSource = {
   events: ActionEvent[];
 };
 
+export type Format = "16:9" | "9:16" | "1:1";
+
+export const FORMAT_SIZE: Record<Format, { width: number; height: number }> = {
+  "16:9": { width: 1920, height: 1080 },
+  "9:16": { width: 1080, height: 1920 },
+  "1:1": { width: 1080, height: 1080 },
+};
+
 export type TimedShot = AdShot & { from: number; durationInFrames: number };
 
 export type AdTimeline = {

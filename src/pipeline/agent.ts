@@ -1,3 +1,4 @@
+import { log } from "./events";
 import { createResponse, dataUrl } from "./meta";
 import type { Driver } from "./browser";
 
@@ -49,14 +50,14 @@ export async function runComputerTask(opts: {
     if (!call) return { text: finalAnswer(res.output_text ?? ""), stopped: false };
 
     const actions: any[] = call.actions ?? (call.action ? [call.action] : []);
-    console.log(`  [${opts.label}] step ${step}: ${actions.map(describe).join(", ")}`);
+    log(`  [${opts.label}] step ${step}: ${actions.map(describe).join(", ")}`);
 
     // Vist only runs against the founder's own product with a test account, so we accept
     // safety checks; they are logged once per task for the job record.
     const checks = call.pending_safety_checks ?? [];
     if (checks.length && !warnedSafety) {
       warnedSafety = true;
-      console.log(`  [${opts.label}] acknowledging safety checks: ${checks.map((c: any) => c.code).join(", ")}`);
+      log(`  [${opts.label}] acknowledging safety checks: ${checks.map((c: any) => c.code).join(", ")}`);
     }
 
     await driver.execute(actions);

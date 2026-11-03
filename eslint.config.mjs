@@ -18,7 +18,14 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      "renders/**",
+      "public/renders/**",
     ],
+  },
+  {
+    // Meta's computer-use and image payloads aren't in the OpenAI SDK's types.
+    files: ["src/pipeline/**", "src/remotion/fonts.ts"],
+    rules: { "@typescript-eslint/no-explicit-any": "off" },
   },
 ];
 

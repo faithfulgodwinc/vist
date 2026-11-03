@@ -146,10 +146,11 @@ function TextShot({ shot, t }: ShotProps<"text">) {
   const { beatFrames, pulse } = useBeat(t.bpm);
   const { p, highlight, display, motion, style, headline } = useTheme();
   const longest = Math.max(...shot.lines.map((l) => l.length));
-  const size = Math.min(style.caps ? 130 : 150, 1650 / (longest * (style.caps ? 0.66 : 0.56)));
+  const { width, pad } = useLayout();
+  const size = Math.min(style.caps ? 130 : 150, (width - 2 * pad - 60) / (longest * (style.caps ? 0.66 : 0.56)));
   const left = style.align === "left";
   return (
-    <AbsoluteFill style={{ alignItems: left ? "flex-start" : "center", justifyContent: "center", padding: left ? "0 170px" : 0, opacity }}>
+    <AbsoluteFill style={{ alignItems: left ? "flex-start" : "center", justifyContent: "center", padding: left ? `0 ${pad}px` : 0, opacity }}>
       <div style={{ transform: `scale(${1 + 0.05 * exit + 0.012 * pulse})`, transformOrigin: left ? "left center" : "center", textAlign: style.align }}>
         {shot.lines.map((line, li) => (
           <div key={li} style={{ fontFamily: display.family, fontSize: size, fontWeight: display.heavy, letterSpacing: -size * (style.caps ? 0.01 : 0.035), lineHeight: 1.06 }}>
@@ -250,15 +251,32 @@ function Footage({ clip, durationInFrames, t }: { clip: ClipSource; durationInFr
   );
 }
 
+// Landscape puts text beside the product; vertical and square stack the text above it.
+function useLayout() {
+  const { width, height } = useVideoConfig();
+  const stacked = width < 1500;
+  return { width, height, stacked, portrait: height > width, pad: stacked ? 90 : 170 };
+}
+
 // Three ways to present the product: a tilted browser window, a chromeless floating card, or huge and edge-to-edge.
 function Device({ clip, durationInFrames, t }: { clip: ClipSource; durationInFrames: number; t: AdTimeline }) {
   const { frame, enter } = useShotMotion(durationInFrames);
   const { style, p, dark } = useTheme();
+  const { width, stacked, portrait } = useLayout();
   const progress = frame / durationInFrames;
   const footage = <Footage clip={clip} durationInFrames={durationInFrames} t={t} />;
   const shadow = dark ? "0 60px 140px rgba(0,0,0,0.6)" : "0 50px 120px rgba(20,20,40,0.22)";
+  const centerY = portrait ? "60%" : "64%";
 
   if (style.frame === "bleed") {
+    if (stacked) {
+      const s = width / t.viewport.width;
+      return (
+        <div style={{ position: "absolute", left: 0, top: centerY, transform: `translateY(-50%) translateY(${(1 - enter) * 120}px) scale(${s * (1.02 + 0.05 * progress)})`, transformOrigin: "left center" }}>
+          {footage}
+        </div>
+      );
+    }
     return (
       <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 1240, overflow: "hidden", transform: `translateX(${(1 - enter) * 200}px)` }}>
         <div style={{ position: "absolute", left: 0, top: "50%", transform: `translateY(-50%) scale(${1.02 + 0.06 * progress})`, transformOrigin: "left center" }}>
@@ -270,14 +288,19 @@ function Device({ clip, durationInFrames, t }: { clip: ClipSource; durationInFra
   }
 
   const floating = style.frame === "floating";
-  const tilt = floating ? 0 : interpolate(progress, [0, 1], [-16, -5], { ...clamp, easing: ease });
+  const tilt = floating ? 0 : interpolate(progress, [0, 1], stacked ? [12, 4] : [-16, -5], { ...clamp, easing: ease });
   const bob = floating ? Math.sin(frame / 22) * 8 : 0;
+  const scale = stacked ? (width - (portrait ? 90 : 170)) / t.viewport.width : 0.8;
+  const position: React.CSSProperties = stacked ? { left: "50%", top: centerY } : { right: 70, top: "50%" };
+  const place = stacked
+    ? `translate(-50%, calc(-50% + ${bob + (1 - enter) * 140}px)) rotateX(${tilt}deg) scale(${scale})`
+    : `translateY(calc(-50% + ${bob}px)) translateX(${(1 - enter) * 160}px) rotateY(${tilt}deg) rotateX(${floating ? 0 : 3}deg) scale(${scale})`;
   return (
-    <div style={{ position: "absolute", right: 70, top: "50%", perspective: 2200 }}>
+    <div style={{ position: "absolute", ...position, perspective: 2200 }}>
       <div
         style={{
-          transform: `translateY(calc(-50% + ${bob}px)) translateX(${(1 - enter) * 160}px) rotateY(${tilt}deg) rotateX(${floating ? 0 : 3}deg) scale(0.8)`,
-          transformOrigin: "right center",
+          transform: place,
+          transformOrigin: stacked ? "center center" : "right center",
           borderRadius: style.radius + 6,
           overflow: "hidden",
           boxShadow: `${shadow}, 0 0 0 1px ${dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)"}, 0 0 120px ${p.primary}33`,
@@ -300,30 +323,47 @@ function Device({ clip, durationInFrames, t }: { clip: ClipSource; durationInFra
 function ClipShot({ shot, t }: ShotProps<"clip">) {
   const { frame, fps, opacity } = useShotMotion(shot.durationInFrames);
   const { p, highlight, display, body, motion, headline, style } = useTheme();
+  const { stacked, portrait, pad } = useLayout();
   const clip = t.clips[shot.sceneId];
   const textIn = spring({ frame: frame - 4, fps, config: motion.spring });
   const subIn = spring({ frame: frame - 10, fps, config: motion.spring });
   if (!clip) return null;
+  const center = stacked && style.align === "center";
+  const textBox: React.CSSProperties = stacked
+    ? { position: "absolute", left: pad, right: pad, top: portrait ? 230 : 70, textAlign: center ? "center" : "left", display: "flex", flexDirection: "column", alignItems: center ? "center" : "flex-start" }
+    : { position: "absolute", left: 110, top: 0, bottom: 0, width: 560, display: "flex", flexDirection: "column", justifyContent: "center" };
+  const captionSize = (style.caps ? 70 : 84) * (stacked && !portrait ? 0.8 : 1);
   return (
     <AbsoluteFill style={{ opacity }}>
       <Device clip={clip} durationInFrames={shot.durationInFrames} t={t} />
-      <div style={{ position: "absolute", left: 110, top: 0, bottom: 0, width: 560, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        <div style={{ width: 64, height: 6, borderRadius: 3, background: highlight, marginBottom: 28, transform: `scaleX(${Math.min(1, textIn)})`, transformOrigin: "left" }} />
+      <div style={textBox}>
+        <div style={{ width: 64, height: 6, borderRadius: 3, background: highlight, marginBottom: stacked ? 22 : 28, transform: `scaleX(${Math.min(1, textIn)})`, transformOrigin: center ? "center" : "left" }} />
         <div
           style={{
             fontFamily: display.family,
-            fontSize: style.caps ? 70 : 84,
+            fontSize: captionSize,
             fontWeight: display.heavy,
             color: p.ink,
             letterSpacing: style.caps ? 0 : -2.5,
             lineHeight: 1.02,
             opacity: Math.min(1, textIn),
-            transform: `translateX(${(1 - textIn) * -motion.travel}px)`,
+            transform: stacked ? `translateY(${(1 - textIn) * motion.travel}px)` : `translateX(${(1 - textIn) * -motion.travel}px)`,
           }}
         >
           {headline(shot.caption)}
         </div>
-        <div style={{ marginTop: 22, fontFamily: body.family, fontSize: 36, fontWeight: 500, color: p.muted, lineHeight: 1.3, opacity: Math.min(1, subIn), transform: `translateX(${(1 - subIn) * -motion.travel * 0.7}px)` }}>
+        <div
+          style={{
+            marginTop: stacked ? 16 : 22,
+            fontFamily: body.family,
+            fontSize: stacked && !portrait ? 30 : 36,
+            fontWeight: 500,
+            color: p.muted,
+            lineHeight: 1.3,
+            opacity: Math.min(1, subIn),
+            transform: stacked ? `translateY(${(1 - subIn) * motion.travel * 0.7}px)` : `translateX(${(1 - subIn) * -motion.travel * 0.7}px)`,
+          }}
+        >
           {shot.sub}
         </div>
       </div>
@@ -340,6 +380,7 @@ function parseStat(value: string) {
 }
 
 function StatShot({ shot, t }: ShotProps<"stat">) {
+  const { width } = useLayout();
   const { frame, opacity } = useShotMotion(shot.durationInFrames);
   const { pulse } = useBeat(t.bpm);
   const { p, highlight, display, body } = useTheme();
@@ -350,7 +391,7 @@ function StatShot({ shot, t }: ShotProps<"stat">) {
     : shot.value;
   return (
     <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", opacity }}>
-      <div style={{ fontFamily: display.family, fontSize: 300, fontWeight: display.heavy, letterSpacing: -10, color: highlight, transform: `scale(${1 + 0.025 * pulse})`, fontVariantNumeric: "tabular-nums" }}>
+      <div style={{ fontFamily: display.family, fontSize: Math.min(300, (width - 120) / Math.max(3, shot.value.length * 0.62)), fontWeight: display.heavy, letterSpacing: -10, color: highlight, transform: `scale(${1 + 0.025 * pulse})`, fontVariantNumeric: "tabular-nums" }}>
         {shown}
       </div>
       <div style={{ fontFamily: body.family, fontSize: 52, fontWeight: 600, color: p.ink, marginTop: -10, opacity: prog }}>{shot.label}</div>
@@ -359,11 +400,14 @@ function StatShot({ shot, t }: ShotProps<"stat">) {
 }
 
 function FeaturesShot({ shot, t }: ShotProps<"features">) {
+  const { width, pad } = useLayout();
+  const longest = Math.max(...shot.items.map((i) => i.length));
+  const itemSize = Math.min(86, (width - 2 * pad - 140) / (longest * 0.56));
   const { frame, fps, opacity } = useShotMotion(shot.durationInFrames);
   const { beatFrames } = useBeat(t.bpm);
   const { p, highlight, onHighlight, display, motion, style, headline } = useTheme();
   return (
-    <AbsoluteFill style={{ alignItems: style.align === "left" ? "flex-start" : "center", justifyContent: "center", padding: style.align === "left" ? "0 170px" : 0, opacity }}>
+    <AbsoluteFill style={{ alignItems: style.align === "left" ? "flex-start" : "center", justifyContent: "center", padding: style.align === "left" ? `0 ${pad}px` : 0, opacity }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 34 }}>
         {shot.items.map((item, i) => {
           const prog = spring({ frame: frame - i * beatFrames, fps, config: motion.spring });
@@ -374,7 +418,7 @@ function FeaturesShot({ shot, t }: ShotProps<"features">) {
                   <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke={onHighlight} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-              <div style={{ fontFamily: display.family, fontSize: style.caps ? 72 : 86, fontWeight: display.heavy, color: p.ink, letterSpacing: style.caps ? 0 : -2.5 }}>{headline(item)}</div>
+              <div style={{ fontFamily: display.family, fontSize: style.caps ? itemSize * 0.85 : itemSize, fontWeight: display.heavy, color: p.ink, letterSpacing: style.caps ? 0 : -2.5 }}>{headline(item)}</div>
             </div>
           );
         })}
@@ -398,6 +442,7 @@ function Logo({ src, size }: { src?: string; size: number }) {
 }
 
 function LogoShot({ shot, t }: ShotProps<"logo">) {
+  const { width } = useLayout();
   const { frame, fps } = useShotMotion(shot.durationInFrames);
   const { p, highlight, onHighlight, display, body, motion, style } = useTheme();
   const pop = spring({ frame, fps, config: motion.spring });
@@ -408,7 +453,7 @@ function LogoShot({ shot, t }: ShotProps<"logo">) {
     <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", textAlign: "center" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 30, transform: `scale(${0.7 + 0.3 * Math.min(1.05, pop)})`, opacity: Math.min(1, pop) }}>
         <Logo src={t.brand.logo} size={120} />
-        <div style={{ fontFamily: display.family, fontSize: 160, fontWeight: display.heavy, letterSpacing: -5, color: p.ink }}>{t.brand.name}</div>
+        <div style={{ fontFamily: display.family, fontSize: Math.min(160, (width - 360) / (t.brand.name.length * 0.58)), fontWeight: display.heavy, letterSpacing: -5, color: p.ink }}>{t.brand.name}</div>
       </div>
       <div style={{ fontFamily: body.family, fontSize: 50, fontWeight: 500, color: p.muted, marginTop: 26, opacity: Math.min(1, tag), transform: `translateY(${(1 - tag) * 24}px)` }}>
         {shot.tagline}

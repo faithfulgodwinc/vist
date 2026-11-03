@@ -1,3 +1,4 @@
+import { log } from "./events";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
@@ -33,7 +34,7 @@ export async function explore(url: string, creds: Credentials, statePath: string
     // The main screen is where products show their headline numbers; the director uses it for stats.
     await page.screenshot({ path: path.join(path.dirname(statePath), "home.jpg"), type: "jpeg", quality: 80 });
     const brand = await extractBrand(page, url);
-    console.log(`  brand: ${brand.name} ${brand.primary}`);
+    log(`  brand: ${brand.name} ${brand.primary}`);
 
     const login = loggedIn
       ? "You are already signed in. Do not sign out."

@@ -1,9 +1,15 @@
+import { log } from "./events";
 import path from "node:path";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
 import type { AdTimeline } from "./types";
 
-export async function renderTimeline(timeline: AdTimeline, outFile: string, root = process.cwd()) {
+export async function renderTimeline(
+  timeline: AdTimeline,
+  outFile: string,
+  root = process.cwd(),
+  onProgress?: (pct: number) => void,
+) {
   const serveUrl = await bundle({
     entryPoint: path.join(root, "src/remotion/index.tsx"),
     publicDir: path.join(root, "public"),
@@ -25,7 +31,8 @@ export async function renderTimeline(timeline: AdTimeline, outFile: string, root
       const pct = Math.floor(progress * 100);
       if (pct >= lastPct + 10) {
         lastPct = pct;
-        console.log(`  render ${pct}%`);
+        log(`  render ${pct}%`);
+        onProgress?.(pct);
       }
     },
   });

@@ -1,3 +1,4 @@
+import { emit, log } from "./events";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import type { ActionEvent, Brand } from "./types";
 
@@ -54,8 +55,11 @@ export class Driver {
     return Date.now() - this.t0;
   }
 
+  // Every screenshot the agent sees also goes to the live studio view.
   async screenshot(): Promise<Buffer> {
-    return this.page.screenshot({ type: "jpeg", quality: 80 });
+    const jpeg = await this.page.screenshot({ type: "jpeg", quality: 80 });
+    emit({ type: "frame", jpeg });
+    return jpeg;
   }
 
   private async log(type: string, run: () => Promise<unknown>, at?: { x: number; y: number }) {
@@ -125,7 +129,7 @@ export class Driver {
         case "screenshot":
           break;
         default:
-          console.warn(`  ! unknown action ${a.type}`);
+          log(`  ! unknown action ${a.type}`);
       }
       await this.settle();
     }

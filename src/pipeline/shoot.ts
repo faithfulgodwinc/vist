@@ -1,3 +1,4 @@
+import { emit, log } from "./events";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
@@ -66,7 +67,7 @@ export async function shootScene(
       // Even if the agent ran out of turns the screen may already show the goal, so let the reviewer judge.
       const failedByAgent = /^\s*FAILED/i.test(result.text);
       const verdict = failedByAgent ? { ok: false, reason: result.text } : await verifyTake(scene, reviewShot);
-      console.log(`  [${scene.id}#${attempt}] ${verdict.ok ? "✓ take approved" : "✗ retake"}: ${verdict.reason}`);
+      log(`  [${scene.id}#${attempt}] ${verdict.ok ? "✓ take approved" : "✗ retake"}: ${verdict.reason}`);
 
       last = {
         sceneId: scene.id,
@@ -77,6 +78,7 @@ export async function shootScene(
         verified: verdict.ok,
         note: verdict.reason,
       };
+      emit({ type: "card", card: "take", data: { sceneId: scene.id, title: scene.title, attempt, ok: verdict.ok, reason: verdict.reason } });
       if (verdict.ok) return last;
     } finally {
       await browser.close();

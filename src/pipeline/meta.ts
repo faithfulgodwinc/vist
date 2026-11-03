@@ -1,3 +1,4 @@
+import { log } from "./events";
 import fs from "node:fs";
 import path from "node:path";
 import OpenAI from "openai";
@@ -65,7 +66,7 @@ function trackUsage(model: string, res: any) {
     const fresh = (u.input_tokens ?? 0) - cached;
     usd = (cached * price[0] + fresh * price[1] + (u.output_tokens ?? 0) * price[2]) / 1e6;
   } else {
-    console.warn(`  ! no usage data from ${model}; counting $${NO_USAGE_ESTIMATE_USD} to stay safe`);
+    log(`  ! no usage data from ${model}; counting $${NO_USAGE_ESTIMATE_USD} to stay safe`);
   }
   charge(usd);
 }
