@@ -14,8 +14,10 @@ const KEY_ALIASES: Record<string, string> = {
   PAGEUP: "PageUp", PAGEDOWN: "PageDown", HOME: "Home", END: "End",
 };
 
+// Models name keys in several dialects ("Page_Down", "PAGEDOWN", "pagedown"); map them to Playwright's.
 function normalizeKey(key: string) {
-  return KEY_ALIASES[key.toUpperCase()] ?? (key.length === 1 ? key : key[0].toUpperCase() + key.slice(1));
+  const compact = key.replace(/[_\s-]/g, "").toUpperCase();
+  return KEY_ALIASES[compact] ?? (key.length === 1 ? key : key[0].toUpperCase() + key.slice(1));
 }
 
 export async function launch(): Promise<Browser> {
@@ -74,64 +76,74 @@ export class Driver {
   }
 
   async execute(actions: any[]) {
-    const mouse = this.page.mouse;
     for (const a of actions) {
-      switch (a.type) {
-        case "click":
-          await this.log("click", async () => {
-            await this.moveTo(a.x, a.y);
-            await mouse.click(a.x, a.y, { button: a.button ?? "left" });
-          }, { x: a.x, y: a.y });
-          break;
-        case "double_click":
-          await this.log("click", async () => {
-            await this.moveTo(a.x, a.y);
-            await mouse.dblclick(a.x, a.y);
-          }, { x: a.x, y: a.y });
-          break;
-        case "move":
-          await this.log("move", () => this.moveTo(a.x, a.y), { x: a.x, y: a.y });
-          break;
-        case "drag": {
-          const path: { x: number; y: number }[] = a.path ?? [];
-          if (path.length < 2) break;
-          const last = path[path.length - 1];
-          await this.log("drag", async () => {
-            await this.moveTo(path[0].x, path[0].y);
-            await mouse.down();
-            for (const p of path.slice(1)) await mouse.move(p.x, p.y, { steps: 8 });
-            await mouse.up();
-          }, last);
-          break;
-        }
-        case "scroll": {
-          const x = a.x ?? this.pointer.x;
-          const y = a.y ?? this.pointer.y;
-          const dx = a.scroll_x ?? a.delta_x ?? 0;
-          const dy = a.scroll_y ?? a.delta_y ?? 0;
-          await this.log("scroll", async () => {
-            await this.moveTo(x, y);
-            await mouse.wheel(dx, dy);
-          }, { x, y });
-          break;
-        }
-        case "type":
-          await this.log("type", () => this.page.keyboard.type(a.text ?? "", { delay: 45 }));
-          break;
-        case "keypress": {
-          const keys: string[] = (a.keys ?? [a.key]).filter(Boolean).map(normalizeKey);
-          await this.log("keypress", () => this.page.keyboard.press(keys.join("+")));
-          break;
-        }
-        case "wait":
-          await this.page.waitForTimeout(Math.min(a.ms ?? 1000, 5000));
-          break;
-        case "screenshot":
-          break;
-        default:
-          log(`  ! unknown action ${a.type}`);
+      // One malformed action (an unknown key, an off-page coordinate) must not end the whole run;
+      // the model sees the unchanged screen next turn and corrects itself.
+      try {
+        await this.perform(a);
+      } catch (err) {
+        log(`  ! skipped ${a.type}: ${(err as Error).message.split("\n")[0]}`);
       }
       await this.settle();
+    }
+  }
+
+  private async perform(a: any) {
+    const mouse = this.page.mouse;
+    switch (a.type) {
+      case "click":
+        await this.log("click", async () => {
+          await this.moveTo(a.x, a.y);
+          await mouse.click(a.x, a.y, { button: a.button ?? "left" });
+        }, { x: a.x, y: a.y });
+        break;
+      case "double_click":
+        await this.log("click", async () => {
+          await this.moveTo(a.x, a.y);
+          await mouse.dblclick(a.x, a.y);
+        }, { x: a.x, y: a.y });
+        break;
+      case "move":
+        await this.log("move", () => this.moveTo(a.x, a.y), { x: a.x, y: a.y });
+        break;
+      case "drag": {
+        const path: { x: number; y: number }[] = a.path ?? [];
+        if (path.length < 2) break;
+        const last = path[path.length - 1];
+        await this.log("drag", async () => {
+          await this.moveTo(path[0].x, path[0].y);
+          await mouse.down();
+          for (const p of path.slice(1)) await mouse.move(p.x, p.y, { steps: 8 });
+          await mouse.up();
+        }, last);
+        break;
+      }
+      case "scroll": {
+        const x = a.x ?? this.pointer.x;
+        const y = a.y ?? this.pointer.y;
+        const dx = a.scroll_x ?? a.delta_x ?? 0;
+        const dy = a.scroll_y ?? a.delta_y ?? 0;
+        await this.log("scroll", async () => {
+          await this.moveTo(x, y);
+          await mouse.wheel(dx, dy);
+        }, { x, y });
+        break;
+      }
+      case "type":
+        await this.log("type", () => this.page.keyboard.type(a.text ?? "", { delay: 45 }));
+        break;
+      case "keypress": {
+        const keys: string[] = (a.keys ?? [a.key]).filter(Boolean).map(normalizeKey);
+        await this.log("keypress", () => this.page.keyboard.press(keys.join("+")));
+        break;
+      }
+      case "wait":
+        await this.page.waitForTimeout(Math.min(a.ms ?? 1000, 5000));
+        break;
+      case "screenshot":
+        break;
+      default:
+        log(`  ! unknown action ${a.type}`);
     }
   }
 

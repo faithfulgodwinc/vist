@@ -1,4 +1,5 @@
 import { emit, log } from "./events";
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
@@ -35,7 +36,8 @@ export async function shootScene(
     const browser = await launch();
     const recordDir = path.join(outDir, `${scene.id}-raw`);
     try {
-      const context = await newContext(browser, { storageState: statePath, recordDir });
+      // Products without a login have no saved session; shoot them logged out.
+      const context = await newContext(browser, { storageState: existsSync(statePath) ? statePath : undefined, recordDir });
       const page = await context.newPage();
       const driver = new Driver(page);
       driver.resetClock();
