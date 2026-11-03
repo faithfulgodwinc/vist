@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { setSink, type Stage, type VistEvent } from "../pipeline/events";
@@ -30,8 +31,36 @@ const queue = (store.vistQueue ??= []);
 
 export const ROOT = process.cwd();
 
+// Jobs live in memory, but their files survive restarts (every deploy restarts the server),
+// so a finished job is rebuilt from disk the first time its studio page is opened again.
 export function getJob(id: string) {
-  return jobs.get(id);
+  const live = jobs.get(id);
+  if (live) return live;
+  const safe = id.replace(/[^a-z0-9-]/gi, "");
+  const workDir = path.join(ROOT, "renders", safe);
+  try {
+    const exp = JSON.parse(readFileSync(path.join(workDir, "explore.json"), "utf8"));
+    const videos: Job["videos"] = {};
+    for (const format of ["16:9", "9:16", "1:1"] as Format[]) {
+      const file = path.join(workDir, `${safe}-${format.replace(":", "x")}.mp4`);
+      if (existsSync(file)) videos[format] = file;
+    }
+    const job: Job = {
+      id: safe,
+      url: exp.brand.url,
+      status: Object.keys(videos).length ? "done" : "error",
+      createdAt: Date.now(),
+      events: [{ type: "card", card: "exploration", data: exp }],
+      frame: null,
+      frameCount: 0,
+      videos,
+      listeners: new Set(),
+    };
+    jobs.set(safe, job);
+    return job;
+  } catch {
+    return undefined;
+  }
 }
 
 function setStatus(job: Job, status: JobStatus) {

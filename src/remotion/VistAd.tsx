@@ -141,29 +141,47 @@ function Backdrop({ t }: { t: AdTimeline }) {
   );
 }
 
+function wrapLines(lines: string[], maxChars: number) {
+  const rows: { text: string; accent: boolean }[] = [];
+  lines.forEach((line, i) => {
+    const accent = i === lines.length - 1;
+    let current = "";
+    for (const word of line.split(" ")) {
+      if (current && (current + " " + word).length > maxChars) {
+        rows.push({ text: current, accent });
+        current = word;
+      } else current = current ? `${current} ${word}` : word;
+    }
+    if (current) rows.push({ text: current, accent });
+  });
+  return rows;
+}
+
 function TextShot({ shot, t }: ShotProps<"text">) {
   const { frame, fps, opacity, exit } = useShotMotion(shot.durationInFrames);
   const { beatFrames, pulse } = useBeat(t.bpm);
   const { p, highlight, display, motion, style, headline } = useTheme();
-  const longest = Math.max(...shot.lines.map((l) => l.length));
-  const { width, pad } = useLayout();
+  const { width, pad, stacked } = useLayout();
+  // Narrow canvases re-wrap long lines so headlines stay big; the last written line keeps the highlight.
+  const rows = stacked ? wrapLines(shot.lines, 13) : shot.lines.map((line, i) => ({ text: line, accent: i === shot.lines.length - 1 }));
+  const longest = Math.max(...rows.map((r) => r.text.length));
   const size = Math.min(style.caps ? 130 : 150, (width - 2 * pad - 60) / (longest * (style.caps ? 0.66 : 0.56)));
   const left = style.align === "left";
   return (
     <AbsoluteFill style={{ alignItems: left ? "flex-start" : "center", justifyContent: "center", padding: left ? `0 ${pad}px` : 0, opacity }}>
       <div style={{ transform: `scale(${1 + 0.05 * exit + 0.012 * pulse})`, transformOrigin: left ? "left center" : "center", textAlign: style.align }}>
-        {shot.lines.map((line, li) => (
+        {rows.map((row, li) => (
           <div key={li} style={{ fontFamily: display.family, fontSize: size, fontWeight: display.heavy, letterSpacing: -size * (style.caps ? 0.01 : 0.035), lineHeight: 1.06 }}>
-            {headline(line).split(" ").map((word, wi) => {
+            {headline(row.text).split(" ").map((word, wi) => {
               // Lines land on successive beats; words within a line ripple in.
-              const prog = spring({ frame: frame - (li * beatFrames + wi * motion.stagger), fps, config: motion.spring });
+              const prog = spring({ frame: frame - (li * beatFrames * (stacked ? 0.6 : 1) + wi * motion.stagger), fps, config: motion.spring });
               return (
                 <span
                   key={wi}
                   style={{
                     display: "inline-block",
                     marginRight: size * 0.25,
-                    color: li === shot.lines.length - 1 ? highlight : p.ink,
+                    color: row.accent ? highlight : p.ink,
                     opacity: Math.min(1, prog),
                     transform: `translateY(${(1 - prog) * motion.travel}px)`,
                     filter: `blur(${Math.max(0, 1 - prog) * 10}px)`,

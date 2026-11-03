@@ -12,21 +12,35 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   let cleanup = () => {};
   const stream = new ReadableStream({
     start(controller) {
-      const send = (data: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      let closed = false;
+      // A viewer can close the tab at any moment; writing after that throws and would crash the server.
+      const write = (chunk: string) => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(chunk));
+        } catch {
+          closed = true;
+          cleanup();
+        }
+      };
+      const send = (data: unknown) => write(`data: ${JSON.stringify(data)}\n\n`);
       send({ type: "status", status: job.status });
       for (const e of job.events) send(e);
       if (job.frameCount) send({ type: "frame", count: job.frameCount });
 
       const listener = (e: unknown) => send(e);
       job.listeners.add(listener);
-      const heartbeat = setInterval(() => controller.enqueue(encoder.encode(": ping\n\n")), 15000);
+      const heartbeat = setInterval(() => write(": ping\n\n"), 15000);
       cleanup = () => {
+        closed = true;
         clearInterval(heartbeat);
         job.listeners.delete(listener);
       };
       req.signal.addEventListener("abort", () => {
         cleanup();
-        controller.close();
+        try {
+          controller.close();
+        } catch {}
       });
     },
     cancel() {
